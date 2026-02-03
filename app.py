@@ -11,6 +11,7 @@ import json
 if "show_instructions" not in st.session_state:
     st.session_state.show_instructions = True
 
+
 # Page configuration
 st.set_page_config(
     page_title="UGA Nutrition Assistant",
@@ -100,23 +101,22 @@ def init_session_state():
 
 init_session_state()
 
+# Instruction screen
 if st.session_state.show_instructions:
     st.title("🐾 Welcome to UGA Nutrition Assistant!")
     
     st.markdown("""
     ## 📋 How to use this app:
     
-    1. **🏠 Home & Goals** – Set your nutrition targets and personalized goals
-    2. **🍽️ Dining Finder** – Explore UGA dining halls and browse available menu options 
+    1. **🏠 Home & Goals** – Set your daily calorie + protein targets  
+    2. **🍽️ Dining Finder** – Find UGA dining hall options 
     3. **📝 Food Log** – Log meals you've eaten today
     4. **📊 Progress** – See how you're tracking vs goals
-    5. **🤖 Ask the Agent** – Get secure, AI-powered nutrition insights
-    6. **⚙️ Settings** – Manage data,preferences & API keys
+    5. **🤖 Ask the Agent** – AI nutrition help *(password protected)*
+    6. **⚙️ Settings** – Manage data & API keys
     
     **💡 Pro tip**: Start with "Home & Goals" to set your targets!
     """)
-    
-    st.markdown("---")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -125,7 +125,8 @@ if st.session_state.show_instructions:
             st.session_state.onboarding_complete = True
             st.rerun()
     
-    st.stop()  # Prevents sidebar from showing
+    st.stop()  # Prevents sidebar from loading
+
 
 
 # Sidebar navigation
