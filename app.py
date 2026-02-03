@@ -428,8 +428,23 @@ elif "Log" in page:
             st.rerun()
 
 elif "Agent" in page:
-    st.markdown("## 🤖 Ask the Nutrition Agent")
+    if "agent_authenticated" not in st.session_state:
+        st.session_state.agent_authenticated = False
     
+    if not st.session_state.agent_authenticated:
+        st.markdown("### 🔐 Enter password to access Nutrition Agent")
+        password = st.text_input("Password:", type="password", key="agent_pass")
+        if st.button("Unlock Agent", key="unlock_btn", use_container_width=True):
+            if password == st.secrets["AGENT_PASSWORD"]:
+                st.session_state.agent_authenticated = True
+                st.success("✅ Access granted! Welcome to the Nutrition Agent.")
+                st.rerun()
+            else:
+                st.error("❌ Incorrect password")
+        st.stop()
+    
+    # === YOUR ORIGINAL AGENT CODE (NOW PROTECTED) ===
+    st.markdown("## 🤖 Ask the Nutrition Agent")
     st.markdown("""
     <div class="citation">
         💡 <strong>Tip:</strong> Ask me about meal suggestions, how to hit your protein goals, 
