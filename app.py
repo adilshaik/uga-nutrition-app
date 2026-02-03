@@ -101,7 +101,20 @@ def init_session_state():
 
 init_session_state()
 
-# Instruction screen
+# Sidebar navigation
+with st.sidebar:
+    st.image("https://brand.uga.edu/wp-content/uploads/GEORGIA-FS-FC-1024x439.png", width=200)
+    st.markdown("---")
+    
+    page = st.radio(
+        "Navigation",
+        ["🏠 Home & Goals", "🍽️ Dining Finder", "📝 Food Log", "🤖 Ask the Agent", "📊 Progress", "⚙️ Settings"],
+        index=0
+    )
+    
+    st.markdown("---")
+
+    # Instruction screen
 if st.session_state.show_instructions:
     st.title("🐾 Welcome to UGA Nutrition Assistant!")
     
@@ -126,21 +139,6 @@ if st.session_state.show_instructions:
             st.rerun()
     
     st.stop()  # Prevents sidebar from loading
-
-
-
-# Sidebar navigation
-with st.sidebar:
-    st.image("https://brand.uga.edu/wp-content/uploads/GEORGIA-FS-FC-1024x439.png", width=200)
-    st.markdown("---")
-    
-    page = st.radio(
-        "Navigation",
-        ["🏠 Home & Goals", "🍽️ Dining Finder", "📝 Food Log", "🤖 Ask the Agent", "📊 Progress", "⚙️ Settings"],
-        index=0
-    )
-    
-    st.markdown("---")
     
     # Quick stats if goals are set
     if st.session_state.goals:
