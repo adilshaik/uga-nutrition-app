@@ -7,6 +7,11 @@ import streamlit as st
 from datetime import datetime, timedelta
 import json
 import os
+from dotenv import load_dotenv
+import hashlib
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import custom modules
 try:
@@ -24,105 +29,201 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for UGA branding
+# Custom CSS for UGA branding and enhanced UI
 st.markdown("""
 <style>
     .stApp {
         background-color: #f8f9fa;
     }
+    
+    /* Main Header Styling */
     .main-header {
         background: linear-gradient(135deg, #BA0C2F 0%, #000000 100%);
-        padding: 2rem;
-        border-radius: 10px;
+        padding: 2.5rem;
+        border-radius: 15px;
         color: white;
         margin-bottom: 2rem;
         text-align: center;
+        box-shadow: 0 4px 15px rgba(186, 12, 47, 0.2);
     }
+    
     .main-header h1 {
         color: white !important;
         margin-bottom: 0.5rem;
+        font-size: 2.5rem;
+        font-weight: 700;
     }
+    
     .main-header p {
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.95);
         margin: 0;
+        font-size: 1.1rem;
     }
-    .metric-card {
-        background: white;
+    
+    /* Instruction Box */
+    .instruction-box {
+        background: linear-gradient(135deg, rgba(186, 12, 47, 0.1) 0%, rgba(255, 194, 32, 0.1) 100%);
+        border: 2px solid #BA0C2F;
         padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-left: 4px solid #BA0C2F;
-        margin: 0.5rem 0;
+        border-radius: 12px;
+        margin: 1.5rem 0;
     }
+    
+    .instruction-box h3 {
+        color: #BA0C2F;
+        margin-top: 0;
+    }
+    
+    .instruction-box ol, .instruction-box ul {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    
+    .instruction-box li {
+        margin: 0.75rem 0;
+        line-height: 1.6;
+    }
+    
+    /* Metric Card */
+    .metric-card {
+        background: #ffffff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 5px solid #BA0C2F;
+        margin: 0.75rem 0;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        box-shadow: 0 4px 12px rgba(186, 12, 47, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .metric-card h4 {
+        color: #BA0C2F;
+        margin: 0 0 0.5rem 0;
+        font-size: 1.1rem;
+    }
+    
+    /* Goal Card */
     .goal-card {
         background: linear-gradient(135deg, #BA0C2F 0%, #9a0a27 100%);
         color: white;
-        padding: 1.5rem;
-        border-radius: 10px;
+        padding: 2rem;
+        border-radius: 12px;
         margin: 1rem 0;
+        box-shadow: 0 4px 15px rgba(186, 12, 47, 0.2);
+        border: 2px solid #FFC220;
     }
+    
     .goal-card h4, .goal-card h2, .goal-card p {
         color: white !important;
-    }
-    .food-item {
-        background: white;
-        padding: 1rem;
-        border-radius: 8px;
         margin: 0.5rem 0;
-        border: 1px solid #e0e0e0;
-        transition: all 0.2s;
     }
-    .food-item:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        border-color: #BA0C2F;
-    }
-    .chat-user {
-        background: #e3f2fd;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0 0.5rem 2rem;
-    }
-    .chat-assistant {
-        background: #f5f5f5;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 2rem 0.5rem 0;
-        border-left: 3px solid #BA0C2F;
-    }
-    .citation-box {
-        font-size: 0.85rem;
-        color: #666;
-        background: #fff3cd;
-        padding: 0.75rem;
-        border-radius: 5px;
+    
+    .goal-card h2 {
+        font-size: 1.8rem;
         margin-top: 0.5rem;
     }
+    
+    /* Food Item */
+    .food-item {
+        background: #ffffff;
+        padding: 1.25rem;
+        border-radius: 10px;
+        margin: 0.75rem 0;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+    
+    .food-item:hover {
+        box-shadow: 0 4px 12px rgba(186, 12, 47, 0.15);
+        border-color: #BA0C2F;
+        transform: translateX(2px);
+    }
+    
+    /* Chat Messages */
+    .chat-user {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        padding: 1rem;
+        border-radius: 12px;
+        margin: 0.75rem 2rem 0.75rem 0;
+        border-left: 4px solid #1976d2;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .chat-assistant {
+        background: #ffffff;
+        padding: 1rem;
+        border-radius: 12px;
+        margin: 0.75rem 0 0.75rem 2rem;
+        border-left: 4px solid #BA0C2F;
+        box-shadow: 0 2px 4px rgba(186, 12, 47, 0.1);
+    }
+    
+    /* Citation Box */
+    .citation-box {
+        font-size: 0.9rem;
+        color: #555;
+        background: linear-gradient(135deg, #fff3cd 0%, #ffe0b2 100%);
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 0.75rem;
+        border-left: 3px solid #ffc107;
+    }
+    
+    /* Tip Box */
     .tip-box {
-        background: #e8f5e9;
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
         border-left: 4px solid #4caf50;
         padding: 1rem;
-        border-radius: 0 8px 8px 0;
+        border-radius: 8px;
         margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(76, 175, 80, 0.1);
     }
+    
+    /* Warning Box */
     .warning-box {
-        background: #fff3e0;
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
         border-left: 4px solid #ff9800;
         padding: 1rem;
-        border-radius: 0 8px 8px 0;
+        border-radius: 8px;
         margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(255, 152, 0, 0.1);
     }
+    
+    /* Tags */
     .tag {
         display: inline-block;
         background: #e0e0e0;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
         font-size: 0.8rem;
-        margin: 0.1rem;
+        margin: 0.2rem;
+        font-weight: 500;
     }
-    .tag-protein { background: #bbdefb; }
-    .tag-vegetarian { background: #c8e6c9; }
-    .tag-vegan { background: #a5d6a7; }
-    .tag-gf { background: #ffe0b2; }
+    
+    .tag-protein { background: linear-gradient(135deg, #bbdefb 0%, #64b5f6 100%); color: #1565c0; }
+    .tag-vegetarian { background: linear-gradient(135deg, #c8e6c9 0%, #81c784 100%); color: #2e7d32; }
+    .tag-vegan { background: linear-gradient(135deg, #a5d6a7 0%, #66bb6a 100%); color: #1b5e20; }
+    .tag-gf { background: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 100%); color: #e65100; }
+    
+    /* Password Box */
+    .password-box {
+        background: linear-gradient(135deg, #f3e5f5 0%, #ede7f6 100%);
+        border: 2px solid #BA0C2F;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin: 2rem 0;
+        box-shadow: 0 4px 15px rgba(186, 12, 47, 0.1);
+    }
+    
+    .password-box h2 {
+        color: #BA0C2F;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -138,13 +239,26 @@ def init_session_state():
         'current_page': 'home',
         'onboarding_complete': False,
         'groq_api_key': os.environ.get('GROQ_API_KEY', ''),
-        'menu_data': get_sample_menu_data() if MODULES_AVAILABLE else []
+        'menu_data': get_sample_menu_data() if MODULES_AVAILABLE else [],
+        'agent_authenticated': False
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 init_session_state()
+
+
+# Password verification function
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_agent_password(password: str) -> bool:
+    """Verify if password matches the correct password"""
+    correct_hash = hash_password("GoDawgs@2026")
+    return hash_password(password) == correct_hash
 
 
 # Initialize Groq Agent
@@ -210,8 +324,7 @@ def fallback_response(user_input: str, context: dict) -> dict:
     
     if any(word in user_input_lower for word in ['protein', 'muscle', 'bulk']):
         remaining = targets.get('protein', 150) - today_totals.get('protein', 0)
-        return {
-            "message": f"""Based on your **{goal_type}** goal, you should aim for **{targets.get('protein', 150)}g protein** daily.
+        message = f"""Based on your **{goal_type}** goal, you should aim for **{targets.get('protein', 150)}g protein** daily.
 
 **Today's progress:** {today_totals.get('protein', 0)}g consumed, **{max(0, remaining)}g remaining**
 
@@ -221,7 +334,10 @@ def fallback_response(user_input: str, context: dict) -> dict:
 • Greek Yogurt Parfait (18g protein) - Bolton, Breakfast
 • Grilled Tofu (18g protein) - Snelling, Lunch
 
-Would you like me to suggest a meal plan to hit your target?""",
+Would you like me to suggest a meal plan to hit your target?"""
+        
+        return {
+            "message": message,
             "citation": "UGA Dining Services Menu",
             "success": True
         }
@@ -249,28 +365,37 @@ What's your priority - protein, energy, or balanced?""",
     elif any(word in user_input_lower for word in ['calories', 'over', 'under', 'budget']):
         remaining = targets.get('calories', 2000) - today_totals.get('calories', 0)
         status = "on track" if 0 <= remaining <= 500 else "over" if remaining < 0 else "under"
-        return {
-            "message": f"""**📊 Your Calorie Status:**
+        
+        status_msg = ""
+        if status == "on track":
+            status_msg = "✅ You are on track!"
+        elif status == "over":
+            status_msg = "⚠️ You are over budget. Consider lighter options or extra activity."
+        else:
+            if remaining > 500:
+                status_msg = "💡 You have room for a full meal!"
+        
+        message = f"""**📊 Your Calorie Status:**
 
 • Consumed: **{today_totals.get('calories', 0)} kcal**
 • Target: **{targets.get('calories', 2000)} kcal**
 • Remaining: **{max(0, remaining)} kcal**
 
-{'✅ You are on track!' if status == 'on track' else ''}
-{'⚠️ You are over budget. Consider lighter options or extra activity.' if status == 'over' else ''}
-{'💡 You have room for a full meal!' if status == 'under' and remaining > 500 else ''}
+{status_msg}
 
 **Lower-calorie, high-satiety options:**
 • Grilled Chicken + Roasted Vegetables (400 cal, 49g protein)
 • Caesar Salad (220 cal, 8g protein)
-• Veggie Stir Fry (320 cal, 15g protein)""",
+• Veggie Stir Fry (320 cal, 15g protein)"""
+        
+        return {
+            "message": message,
             "citation": "Calculated from your food log",
             "success": True
         }
     
     else:
-        return {
-            "message": f"""I'm here to help with your nutrition goals! 🐾
+        message = f"""I'm here to help with your nutrition goals! 🐾
 
 **Your Current Setup:**
 • 🎯 Goal: {goal_type}
@@ -287,7 +412,9 @@ Try asking:
 • "What should I eat for lunch at Bolton?"
 • "How can I hit my protein goal?"
 • "What are some healthy breakfast options?"
-""",
+"""
+        return {
+            "message": message,
             "citation": "",
             "success": True
         }
@@ -336,7 +463,7 @@ with st.sidebar:
     if api_key:
         st.success("✅ AI Agent Active")
     else:
-        st.warning("⚠️ Add Groq API key in Settings for AI features")
+        st.info("ℹ️ AI features use environment variables")
 
 
 # ========================
@@ -351,6 +478,34 @@ if "Home" in page:
     """, unsafe_allow_html=True)
     
     if not st.session_state.onboarding_complete:
+        # Welcome and Instructions
+        st.markdown("""
+## 👋 Welcome to UGA Nutrition Assistant!
+
+This app helps UGA students track their nutrition, find healthy meals at campus dining halls, and get personalized nutrition advice powered by AI.
+
+### 🚀 Getting Started:
+1. **Set Your Goals:** Fill out the form below to establish your nutrition targets based on your body stats and fitness goals
+2. **Explore Dining Options:** Visit the 🍽️ Dining Finder to browse UGA's dining hall menus
+3. **Track Your Meals:** Log the foods you eat in 📝 Food Log to monitor your daily intake
+4. **Ask the AI Agent:** Get personalized nutrition advice and meal recommendations in 🤖 Ask the Agent
+5. **Monitor Progress:** Check 📊 Progress to see your nutrition trends over time
+
+### ⚡ Key Features:
+- **Personalized Targets:** Calculate your daily calorie, protein, carb, and fat targets
+- **Dining Hall Integration:** Search meals from Bolton, Snelling, Village Summit, and more
+- **AI Nutrition Coach:** Get smart recommendations based on your goals and current intake
+- **Real-time Tracking:** Monitor your daily macronutrients against your targets
+- **Historical Analytics:** Track weekly trends and patterns
+
+### 💡 Pro Tips:
+- Set realistic goals that align with your lifestyle
+- Log meals consistently to get accurate insights
+- Use the Dining Finder to plan meals before you go to the hall
+- Ask the Agent specific questions about your dining hall options
+- Check your progress weekly to stay motivated
+        """)
+        
         st.markdown("## 🎯 Let's Set Up Your Nutrition Goals")
         st.markdown("Answer a few quick questions to get personalized recommendations.")
         
@@ -660,75 +815,100 @@ elif "Log" in page:
 elif "Agent" in page:
     st.markdown("## 🤖 Ask the Nutrition Agent")
     
-    # Check API status
-    if not st.session_state.get('groq_api_key'):
+    # Password protection
+    if not st.session_state.agent_authenticated:
         st.markdown("""
-        <div class="warning-box">
-            <strong>⚠️ AI Agent Not Configured</strong><br>
-            Add your Groq API key in Settings to enable AI-powered responses. 
-            Basic responses are still available.
+        <div class="password-box">
+            <h2>🔐 Agent Access</h2>
+            <p>This feature requires a password for security. Please enter the password to proceed.</p>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="tip-box">
-        💡 <strong>Try asking:</strong> "What should I eat at Bolton to hit my protein goal?" or 
-        "How can I adjust my dinner to stay under calories?"
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Suggested prompts
-    st.markdown("### 💬 Suggested Questions")
-    prompt_cols = st.columns(2)
-    prompts = [
-        "What high-protein options are at Bolton today?",
-        "How can I hit my protein goal with dinner?",
-        "What are healthy breakfast options?",
-        "Help me plan meals to stay under my calorie target"
-    ]
-    
-    for i, prompt in enumerate(prompts):
-        with prompt_cols[i % 2]:
-            if st.button(prompt, key=f"prompt_{i}", use_container_width=True):
-                st.session_state.chat_history.append({"role": "user", "content": prompt})
-                context = build_agent_context(True)
-                response = get_agent_response(prompt, context)
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": response["message"],
-                    "citation": response.get("citation", "")
-                })
+        
+        password_input = st.text_input("Enter Password:", type="password", placeholder="Enter your password")
+        
+        if password_input:
+            if verify_agent_password(password_input):
+                st.session_state.agent_authenticated = True
+                st.success("✅ Access granted! Reloading...")
                 st.rerun()
+            else:
+                st.error("❌ Incorrect password. Please try again.")
     
-    st.markdown("---")
-    
-    use_log = st.checkbox("📝 Include my food log for context", value=True)
-    
-    # Display chat history
-    for message in st.session_state.chat_history:
-        if message["role"] == "user":
-            st.markdown(f"""<div class="chat-user"><strong>You:</strong> {message["content"]}</div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="chat-assistant"><strong>🤖 Agent:</strong><br>{message["content"]}</div>""", unsafe_allow_html=True)
-            if message.get("citation"):
-                st.markdown(f"""<div class="citation-box">📚 Source: {message["citation"]}</div>""", unsafe_allow_html=True)
-    
-    # Chat input
-    user_input = st.chat_input("Ask about nutrition, dining options, or your goals...")
-    
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        context = build_agent_context(use_log)
-        response = get_agent_response(user_input, context)
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": response["message"],
-            "citation": response.get("citation", "")
-        })
-        st.rerun()
-    
-    if st.session_state.chat_history:
-        if st.button("🗑️ Clear Chat History"):
+    else:
+        # Check API status
+        if not st.session_state.get('groq_api_key'):
+            st.markdown("""
+            <div class="warning-box">
+                <strong>⚠️ AI Agent Not Configured</strong><br>
+                The Groq API key is set via environment variable. Basic responses are still available.
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="tip-box">
+            💡 <strong>Try asking:</strong> "What should I eat at Bolton to hit my protein goal?" or 
+            "How can I adjust my dinner to stay under calories?"
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Suggested prompts
+        st.markdown("### 💬 Suggested Questions")
+        prompt_cols = st.columns(2)
+        prompts = [
+            "What high-protein options are at Bolton today?",
+            "How can I hit my protein goal with dinner?",
+            "What are healthy breakfast options?",
+            "Help me plan meals to stay under my calorie target"
+        ]
+        
+        for i, prompt in enumerate(prompts):
+            with prompt_cols[i % 2]:
+                if st.button(prompt, key=f"prompt_{i}", use_container_width=True):
+                    st.session_state.chat_history.append({"role": "user", "content": prompt})
+                    context = build_agent_context(True)
+                    response = get_agent_response(prompt, context)
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response["message"],
+                        "citation": response.get("citation", "")
+                    })
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        use_log = st.checkbox("📝 Include my food log for context", value=True)
+        
+        # Display chat history
+        for message in st.session_state.chat_history:
+            if message["role"] == "user":
+                st.markdown(f"""<div class="chat-user"><strong>You:</strong> {message["content"]}</div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(f"""<div class="chat-assistant"><strong>🤖 Agent:</strong><br>{message["content"]}</div>""", unsafe_allow_html=True)
+                if message.get("citation"):
+                    st.markdown(f"""<div class="citation-box">📚 Source: {message["citation"]}</div>""", unsafe_allow_html=True)
+        
+        # Chat input
+        user_input = st.chat_input("Ask about nutrition, dining options, or your goals...")
+        
+        if user_input:
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            context = build_agent_context(use_log)
+            response = get_agent_response(user_input, context)
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": response["message"],
+                "citation": response.get("citation", "")
+            })
+            st.rerun()
+        
+        if st.session_state.chat_history:
+            if st.button("🗑️ Clear Chat History"):
+                st.session_state.chat_history = []
+                st.rerun()
+        
+        # Logout button
+        if st.button("🚪 Logout", key="logout_agent"):
+            st.session_state.agent_authenticated = False
             st.session_state.chat_history = []
             st.rerun()
 
@@ -792,28 +972,37 @@ elif "Progress" in page:
 elif "Settings" in page:
     st.markdown("## ⚙️ Settings")
     
-    st.markdown("### 🔑 API Configuration")
+    st.markdown("### 🔐 API Configuration")
     
-    api_key = st.text_input(
-        "Groq API Key",
-        value=st.session_state.get('groq_api_key', ''),
-        type="password",
-        help="Get your API key at https://console.groq.com"
-    )
-    
-    if api_key != st.session_state.get('groq_api_key', ''):
-        st.session_state.groq_api_key = api_key
-        st.success("✅ API key updated!")
-    
-    st.markdown("[🔗 Get your free Groq API key](https://console.groq.com)")
+    api_key = st.session_state.get('groq_api_key', '')
+    if api_key:
+        st.success("✅ Groq API is configured via environment variables")
+        st.caption("The API key is securely stored in your .env file and not visible in the app")
+    else:
+        st.warning("⚠️ Groq API key not found in environment")
+        st.info("""
+        **To enable AI features:**
+        1. Create a `.env` file in your project root
+        2. Add: `GROQ_API_KEY=your_api_key_here`
+        3. Get your free API key at https://console.groq.com
+        4. Restart the app
+        """)
     
     st.markdown("---")
     st.markdown("### 📊 Current Profile")
     
     if st.session_state.user_profile:
-        st.json(st.session_state.user_profile)
+        profile_data = st.session_state.user_profile.copy()
+        st.json(profile_data)
     else:
         st.info("No profile set. Go to Home to set up your goals.")
+    
+    if st.session_state.goals:
+        st.markdown("### 🎯 Current Goals")
+        st.json(st.session_state.goals)
+        
+        st.markdown("### 🎯 Daily Targets")
+        st.json(st.session_state.daily_targets)
     
     st.markdown("---")
     st.markdown("### 🗑️ Data Management")
@@ -824,6 +1013,7 @@ elif "Settings" in page:
             for key in ['user_profile', 'goals', 'daily_targets', 'food_log', 'chat_history']:
                 st.session_state[key] = [] if key in ['food_log', 'chat_history'] else None
             st.session_state.onboarding_complete = False
+            st.session_state.agent_authenticated = False
             st.success("✅ All data cleared!")
             st.rerun()
     
