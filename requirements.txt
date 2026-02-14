@@ -13,6 +13,11 @@ numpy>=1.24.0
 # Utilities
 python-dotenv>=1.0.0
 
+# Vision detection
+ultralytics
+opencv-python
+
+
 # Optional: For enhanced features
 # pillow>=10.0.0  # For image processing (plate photo feature)
 # pytesseract>=0.3.10  # For OCR (nutrition label scanning)
