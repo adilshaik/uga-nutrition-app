@@ -68,6 +68,9 @@ coverage.xml
 # Streamlit
 .streamlit/
 
+# App data persistence
+.app_data/
+
 # Logs
 *.log
 logs/
