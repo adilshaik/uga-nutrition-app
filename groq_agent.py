@@ -54,8 +54,20 @@ Your role is to help students achieve their nutrition goals using UGA Dining Ser
 - Do NOT compliment the user's questions or be sycophantic
 """
 
+    @staticmethod
+    def _normalize_api_key(api_key: Optional[str]) -> str:
+        if not api_key:
+            return ""
+        cleaned = api_key.strip()
+        if (cleaned.startswith('"') and cleaned.endswith('"')) or (
+            cleaned.startswith("'") and cleaned.endswith("'")
+        ):
+            cleaned = cleaned[1:-1].strip()
+        return cleaned
+
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("GROQ_API_KEY")
+        env_key = os.environ.get("GROQ_API_KEY")
+        self.api_key = self._normalize_api_key(api_key or env_key)
         self.client = None
         self.model = "llama-3.3-70b-versatile"
 

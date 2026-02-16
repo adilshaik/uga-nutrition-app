@@ -868,19 +868,24 @@ elif page == "🤖 Ask the Agent":
     from groq_agent import NutritionAgent
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        # Override stale shell env values with the newest .env value.
+        load_dotenv(override=True)
     except ImportError:
         pass
 
-    if "nutrition_agent" not in st.session_state:
-        # Try multiple sources for the API key
-        api_key = os.environ.get("GROQ_API_KEY")
-        if not api_key:
-            try:
-                api_key = st.secrets.get("GROQ_API_KEY")
-            except Exception:
-                pass
+    # Try multiple sources for the API key
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        try:
+            api_key = st.secrets.get("GROQ_API_KEY")
+        except Exception:
+            pass
+
+    # Recreate agent if key changed so old invalid keys are not reused.
+    cached_agent_key = st.session_state.get("nutrition_agent_key")
+    if ("nutrition_agent" not in st.session_state) or (cached_agent_key != api_key):
         st.session_state.nutrition_agent = NutritionAgent(api_key=api_key)
+        st.session_state.nutrition_agent_key = api_key
 
     agent = st.session_state.nutrition_agent
 

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import hashlib
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 # Import custom modules
 try:
@@ -247,6 +247,11 @@ def init_session_state():
             st.session_state[key] = value
 
 init_session_state()
+
+# Keep session key synced to latest .env value.
+env_groq_key = (os.environ.get("GROQ_API_KEY") or "").strip().strip('"').strip("'")
+if env_groq_key and st.session_state.get("groq_api_key") != env_groq_key:
+    st.session_state.groq_api_key = env_groq_key
 
 
 # Password verification function
