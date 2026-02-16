@@ -2,7 +2,6 @@
 UGA Nutrition App - Streamlit PoC
 A nutrition guidance application for UGA students using AI-powered recommendations
 """
-
 import streamlit as st
 from datetime import datetime, timedelta
 import json
