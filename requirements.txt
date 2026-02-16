@@ -15,7 +15,7 @@ python-dotenv>=1.0.0
 
 # Vision detection
 ultralytics
-opencv-python
+opencv-python-headless
 
 
 # Optional: For enhanced features

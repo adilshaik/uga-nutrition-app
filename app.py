@@ -10,7 +10,6 @@ import os
 import hashlib
 import hmac
 
-from vision import VegetableDetector
 import tempfile
 from PIL import Image
 
@@ -157,7 +156,12 @@ def _classify_food_group(category: str, name: str) -> str:
 # --- YOLO detector (cached) ---
 @st.cache_resource
 def load_yolo_detector():
-    return VegetableDetector(conf_threshold=0.25)
+    try:
+        from vision import VegetableDetector
+        return VegetableDetector(conf_threshold=0.25)
+    except Exception as e:
+        st.warning(f"Food Scanner is unavailable in this environment: {e}")
+        return None
 
 # --- Nutrition estimation for detected foods ---
 FOOD_NUTRITION_DB = {
@@ -752,6 +756,9 @@ elif page == "🖼️ Food Scanner":
     st.markdown("Upload or take a photo of your plate to detect foods, choose portions, and add to your log.")
 
     detector = load_yolo_detector()
+    if detector is None:
+        st.info("Scanner dependencies failed to load. Use Dining Finder and Food Log until dependencies are fixed.")
+        st.stop()
 
     tab_upload, tab_camera = st.tabs(["📁 Upload Photo", "📸 Take Photo"])
     with tab_upload:
