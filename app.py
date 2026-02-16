@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 import os
+import hashlib
+import hmac
 
 from vision import VegetableDetector
 import tempfile
@@ -16,6 +18,12 @@ from PIL import Image
 # Works locally with file storage; on Streamlit Cloud use st.session_state only
 # (Cloud filesystem is ephemeral - data resets on redeploy)
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".app_data")
+AGENT_PASSWORD_HASH = hashlib.sha256("GoDawgs@2026".encode()).hexdigest()
+
+
+def verify_agent_password(password: str) -> bool:
+    candidate_hash = hashlib.sha256(password.encode()).hexdigest()
+    return hmac.compare_digest(candidate_hash, AGENT_PASSWORD_HASH)
 
 def _ensure_data_dir():
     try:
@@ -273,6 +281,7 @@ def init_session_state():
         'user_profile': None, 'goals': None, 'daily_targets': None,
         'food_log': [], 'chat_history': [],
         'onboarding_complete': False, 'activity_day_type': 'Training Day',
+        'agent_authenticated': False,
     }
     saved = load_user_data()
     for key, value in defaults.items():
@@ -369,6 +378,35 @@ if page == "🏠 Home & Goals":
         <p>Your personalized nutrition guide powered by UGA Dining Services</p>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown("""
+### 👋 Welcome to UGA Nutrition Assistant!
+This app helps UGA students track their nutrition, find healthy meals at campus dining halls, and get personalized nutrition advice powered by AI.
+
+#### 🚀 Getting Started
+1. **Set Your Goals:** Fill out the form below to establish your nutrition targets based on your body stats and fitness goals.
+2. **Explore Dining Options:** Visit **🍽️ Dining Finder** to browse UGA dining hall menus.
+3. **Track Your Meals:** Log foods in **📝 Food Log** to monitor daily intake.
+4. **Ask the AI Agent:** Get personalized nutrition guidance in **🤖 Ask the Agent**.
+5. **Monitor Progress:** Check **📊 Progress** to see trends over time.
+
+#### ⚡ Key Features
+- Personalized daily calorie, protein, carb, fat, and fiber targets.
+- Dining hall integration across Bolton, Snelling, Village Summit, and more.
+- AI nutrition coaching based on your goals and intake.
+- Real-time macro tracking against your targets.
+- Weekly trend analytics to spot patterns.
+
+#### 💡 Pro Tips
+- Set realistic goals that match your routine.
+- Log meals consistently for better insights.
+- Use Dining Finder to plan before you go.
+- Ask the Agent specific dining hall and meal questions.
+- Review progress weekly and adjust as needed.
+
+#### 🎯 Let's Set Up Your Nutrition Goals
+Answer a few quick questions to get personalized recommendations.
+    """)
 
     if not st.session_state.onboarding_complete:
         st.markdown("### Set Up Your Nutrition Goals")
@@ -805,6 +843,27 @@ elif page == "🖼️ Food Scanner":
 # ================================================
 elif page == "🤖 Ask the Agent":
     st.markdown("### 🤖 Nutrition Agent")
+
+    if not st.session_state.get("agent_authenticated", False):
+        st.markdown("This section is password protected.")
+        with st.form("unlock_agent_form"):
+            password_input = st.text_input("Enter agent password", type="password")
+            unlock_submitted = st.form_submit_button("Unlock Agent", type="primary")
+
+        if unlock_submitted:
+            if verify_agent_password(password_input):
+                st.session_state.agent_authenticated = True
+                st.success("Agent unlocked.")
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+        st.stop()
+
+    lock_col, _ = st.columns([1, 4])
+    with lock_col:
+        if st.button("🔒 Lock Agent"):
+            st.session_state.agent_authenticated = False
+            st.rerun()
 
     from groq_agent import NutritionAgent
     try:
