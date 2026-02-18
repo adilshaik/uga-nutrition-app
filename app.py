@@ -10,8 +10,8 @@ import os
 import hashlib
 import hmac
 
+import re
 import tempfile
-from PIL import Image
 
 # --- Data persistence helpers ---
 # Works locally with file storage; on Streamlit Cloud use st.session_state only
@@ -126,18 +126,21 @@ FOOD_GROUP_KEYWORDS = {
     "Grains": ["bread", "rice", "pasta", "noodle", "tortilla", "wrap", "biscuit", "roll",
                "cereal", "oatmeal", "grits", "bagel", "muffin", "pancake", "waffle",
                "crouton", "couscous", "quinoa", "pita", "croissant"],
-    "Vegetables": ["broccoli", "carrot", "spinach", "kale", "lettuce", "tomato", "pepper",
-                   "onion", "cucumber", "corn", "bean", "pea", "squash", "zucchini",
+    "Vegetables": ["broccoli", "carrot", "spinach", "kale", "lettuce", "tomato",
+                   "bell pepper", "green pepper", "red pepper", "roasted pepper",
+                   "onion", "cucumber", "corn", "green bean", "black bean", "pinto bean",
+                   "pea", "squash", "zucchini",
                    "celery", "mushroom", "potato", "sweet potato", "cabbage", "asparagus",
                    "cauliflower", "salad", "veggie", "vegetable", "greens", "collard"],
     "Fruits": ["apple", "banana", "orange", "berry", "strawberry", "blueberry", "grape",
                "melon", "watermelon", "pineapple", "mango", "peach", "pear", "fruit"],
     "Dairy": ["cheese", "milk", "yogurt", "cream", "butter", "ice cream", "cottage",
-              "mozzarella", "cheddar", "parmesan", "provolone"],
+              "mozzarella", "cheddar", "parmesan", "provolone", "jack", "swiss",
+              "american cheese", "cream cheese"],
     "Fats & Oils": ["oil", "dressing", "mayo", "mayonnaise", "ranch", "vinaigrette",
                     "guacamole", "avocado", "nuts", "almond", "peanut", "walnut"],
     "Sweets & Desserts": ["cake", "cookie", "brownie", "pie", "donut", "pastry", "candy",
-                          "chocolate", "pudding", "dessert", "cobbler", "sweet"],
+                          "chocolate", "pudding", "dessert", "cobbler"],
     "Beverages": ["juice", "coffee", "tea", "soda", "lemonade", "smoothie", "water",
                   "drink", "beverage", "shake"],
 }
@@ -147,39 +150,32 @@ def _classify_food_group(category: str, name: str) -> str:
     best_group = "Other"
     best_score = 0
     for group, keywords in FOOD_GROUP_KEYWORDS.items():
-        score = sum(1 for kw in keywords if kw in text)
+        # Use word-boundary-aware matching: check that the keyword appears
+        # as a whole word or phrase, not as a substring of another word
+        score = 0
+        for kw in keywords:
+            # Build pattern that handles plurals (berry->berries, bean->beans, etc.)
+            if kw.endswith('y'):
+                pattern = r'\b' + re.escape(kw[:-1]) + r'(?:y|ies)\b'
+            else:
+                pattern = r'\b' + re.escape(kw) + r'(?:e?s)?\b'
+            if re.search(pattern, text):
+                # Multi-word keywords (like "bell pepper") score higher
+                score += len(kw.split())
         if score > best_score:
             best_score = score
             best_group = group
     return best_group
 
-# --- YOLO detector (cached) ---
+# --- Food Classifier (cached) ---
 @st.cache_resource
-def load_yolo_detector():
+def load_food_classifier():
     try:
-        from vision import VegetableDetector
-        return VegetableDetector(conf_threshold=0.25)
+        from vision import FoodClassifier
+        return FoodClassifier()
     except Exception as e:
         st.warning(f"Food Scanner is unavailable in this environment: {e}")
         return None
-
-# --- Nutrition estimation for detected foods ---
-FOOD_NUTRITION_DB = {
-    "broccoli":  {"calories": 55, "protein": 3.7, "carbs": 11.2, "fat": 0.6, "fiber": 5.1, "food_group": "Vegetables"},
-    "carrot":    {"calories": 41, "protein": 0.9, "carbs": 9.6,  "fat": 0.2, "fiber": 2.8, "food_group": "Vegetables"},
-    "apple":     {"calories": 95, "protein": 0.5, "carbs": 25.1, "fat": 0.3, "fiber": 4.4, "food_group": "Fruits"},
-    "orange":    {"calories": 62, "protein": 1.2, "carbs": 15.4, "fat": 0.2, "fiber": 3.1, "food_group": "Fruits"},
-    "banana":    {"calories": 105,"protein": 1.3, "carbs": 27.0, "fat": 0.4, "fiber": 3.1, "food_group": "Fruits"},
-    "tomato":    {"calories": 22, "protein": 1.1, "carbs": 4.8,  "fat": 0.2, "fiber": 1.5, "food_group": "Vegetables"},
-}
-
-PORTION_MULTIPLIERS = {
-    "Small (half cup)": 0.5,
-    "Medium (1 cup)": 1.0,
-    "Large (1.5 cups)": 1.5,
-    "Extra Large (2 cups)": 2.0,
-    "1 piece / whole item": 1.0,
-}
 
 
 # ================================================
@@ -308,8 +304,14 @@ def get_target_range(base_targets: dict, day_type: str) -> dict:
         low_mult, high_mult = 0.95, 1.05
     else:
         low_mult, high_mult = 1.0, 1.15
+
     result = {}
-    for key in ['calories', 'protein', 'carbs', 'fat']:
+    # Calories: use stored min/max from Mifflin-St Jeor if available, then apply day multiplier
+    cal_min = base_targets.get('calories_min', base_targets.get('calories', 0))
+    cal_max = base_targets.get('calories_max', base_targets.get('calories', 0))
+    result['calories'] = {"low": int(cal_min * low_mult), "high": int(cal_max * high_mult)}
+
+    for key in ['protein', 'carbs', 'fat']:
         base = base_targets.get(key, 0)
         result[key] = {"low": int(base * low_mult), "high": int(base * high_mult)}
     result['fiber'] = {"low": 25, "high": 35}
@@ -414,6 +416,14 @@ Answer a few quick questions to get personalized recommendations.
 
     if not st.session_state.onboarding_complete:
         st.markdown("### Set Up Your Nutrition Goals")
+        st.warning(
+            "**Important:** Many factors affect individual nutrition needs, including illness, stress levels, "
+            "sleep quality, hormone fluctuations, and more. The goals recommended below should only be considered "
+            "a **starting place**. For more specific recommendations tailored to your situation, please consult a "
+            "Registered Dietitian. UGA students can "
+            "[schedule a free appointment with the campus Dietitian]"
+            "(https://www.uhs.uga.edu/nutrition)."
+        )
         with st.form("goal_setup"):
             col1, col2 = st.columns(2)
             with col1:
@@ -423,6 +433,7 @@ Answer a few quick questions to get personalized recommendations.
                 weight = st.number_input("Weight (lbs)", min_value=80, max_value=400, value=160)
                 height_ft = st.number_input("Height (feet)", min_value=4, max_value=7, value=5)
                 height_in = st.number_input("Height (inches)", min_value=0, max_value=11, value=9)
+                age = st.number_input("Age (years)", min_value=15, max_value=80, value=20)
 
             with col2:
                 activity_level = st.selectbox("Activity level",
@@ -438,14 +449,21 @@ Answer a few quick questions to get personalized recommendations.
             if st.form_submit_button("Calculate My Targets", type="primary"):
                 height_cm = (height_ft * 12 + height_in) * 2.54
                 weight_kg = weight * 0.453592
-                bmr = 10 * weight_kg + 6.25 * height_cm - 5 * 20 + 5
+
+                # Mifflin-St Jeor: min uses -161, max uses +5
+                base = 10 * weight_kg + 6.25 * height_cm - 5 * age
+                bmr_min = base - 161
+                bmr_max = base + 5
 
                 activity_multipliers = {
                     "Sedentary (little exercise)": 1.2, "Light (1-3 days/week)": 1.375,
                     "Moderate (3-5 days/week)": 1.55, "Active (6-7 days/week)": 1.725,
                     "Very Active (athlete/physical job)": 1.9
                 }
-                tdee = bmr * activity_multipliers[activity_level]
+                mult = activity_multipliers[activity_level]
+                tdee_min = bmr_min * mult
+                tdee_max = bmr_max * mult
+
                 goal_adjustments = {
                     "Build Muscle / Bulk Up": (300, 1.0), "Lose Fat / Cut": (-500, 1.0),
                     "Maintain Weight": (0, 0.8), "Improve Energy": (0, 0.8),
@@ -453,15 +471,22 @@ Answer a few quick questions to get personalized recommendations.
                 }
                 cal_adj, protein_mult = goal_adjustments[goal_type]
 
+                cal_low = int(tdee_min + cal_adj)
+                cal_high = int(tdee_max + cal_adj)
+                cal_mid = (cal_low + cal_high) // 2
+
                 st.session_state.user_profile = {
                     'weight': weight, 'height_ft': height_ft, 'height_in': height_in,
-                    'activity_level': activity_level, 'dining_preference': dining_preference,
+                    'age': age, 'activity_level': activity_level,
+                    'dining_preference': dining_preference,
                     'dietary_restrictions': dietary_restrictions
                 }
                 st.session_state.goals = {'type': goal_type, 'created_at': str(datetime.now())}
                 st.session_state.daily_targets = {
-                    'calories': int(tdee + cal_adj), 'protein': int(weight * protein_mult),
-                    'carbs': int((tdee + cal_adj) * 0.45 / 4), 'fat': int((tdee + cal_adj) * 0.25 / 9)
+                    'calories': cal_mid,
+                    'calories_min': cal_low, 'calories_max': cal_high,
+                    'protein': int(weight * protein_mult),
+                    'carbs': int(cal_mid * 0.45 / 4), 'fat': int(cal_mid * 0.25 / 9)
                 }
                 st.session_state.onboarding_complete = True
                 save_user_data()
@@ -753,12 +778,14 @@ elif page == "📝 Food Log":
 # ================================================
 elif page == "🖼️ Food Scanner":
     st.markdown("### 🖼️ Food Scanner")
-    st.markdown("Upload or take a photo of your plate to detect foods, choose portions, and add to your log.")
+    st.markdown("Upload a photo of your food and we'll identify it and estimate the calories automatically.")
 
-    detector = load_yolo_detector()
-    if detector is None:
-        st.info("Scanner dependencies failed to load. Use Dining Finder and Food Log until dependencies are fixed.")
+    classifier = load_food_classifier()
+    if classifier is None:
+        st.info("Food Scanner could not load. Make sure 'food_classifier.pt' is present in the project folder.")
         st.stop()
+
+    st.caption(f"Trained to recognize **{classifier.food_count}** different foods with portion size estimation.")
 
     tab_upload, tab_camera = st.tabs(["📁 Upload Photo", "📸 Take Photo"])
     with tab_upload:
@@ -773,76 +800,48 @@ elif page == "🖼️ Food Scanner":
             tmp_file.write(image_source.getvalue())
             img_path = tmp_file.name
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.image(image_source, caption="Your photo", use_container_width=True)
-        with col2:
-            with st.spinner("Analyzing image..."):
-                detections = detector.detect_vegetables(img_path)
-                annotated_path = detector.visualize_detections(img_path)
-                annotated_img = Image.open(annotated_path)
-            st.image(annotated_img, caption="Detected foods", use_container_width=True)
+        st.image(image_source, caption="Your photo", use_container_width=True)
+
+        with st.spinner("Identifying food..."):
+            result = classifier.predict(img_path)
 
         try:
             os.unlink(img_path)
-            os.unlink(annotated_path)
         except Exception:
             pass
 
         st.markdown("---")
 
-        if detections:
-            st.success(f"Found **{len(detections)}** food items!")
+        if result:
+            conf_pct = int(result["confidence"] * 100)
+            st.markdown(f"#### {result['food_name']}")
+            st.caption(f"{result['portion_label']} · {conf_pct}% confidence · {result['food_group']}")
 
-            items_to_add = []
-            for idx, det in enumerate(detections):
-                food_name = det['class_name']
-                confidence = det['confidence']
-                nutrition = FOOD_NUTRITION_DB.get(food_name, {
-                    "calories": 50, "protein": 2, "carbs": 10, "fat": 1, "fiber": 2, "food_group": "Other"
+            st.markdown(f'''<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin:8px 0;">
+                <div style="display:flex;justify-content:space-around;text-align:center;">
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["calories"]}</div><div style="color:#718096;font-size:0.85rem;">Calories</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["protein"]}g</div><div style="color:#718096;font-size:0.85rem;">Protein</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["carbs"]}g</div><div style="color:#718096;font-size:0.85rem;">Carbs</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fat"]}g</div><div style="color:#718096;font-size:0.85rem;">Fat</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fiber"]}g</div><div style="color:#718096;font-size:0.85rem;">Fiber</div></div>
+                </div>
+            </div>''', unsafe_allow_html=True)
+
+            if st.button("Add to Food Log", type="primary", use_container_width=True, key="scan_add_btn"):
+                st.session_state.food_log.append({
+                    'date': str(datetime.now().date()),
+                    'time': datetime.now().strftime("%H:%M"),
+                    'name': f"{result['food_name']} ({result['portion_label']})",
+                    'hall': 'Scanned', 'meal': 'Scanned',
+                    'calories': result['calories'], 'protein': result['protein'],
+                    'carbs': result['carbs'], 'fat': result['fat'],
+                    'fiber': result['fiber'], 'food_group': result['food_group'],
+                    'serving_size': result['portion_label'], 'servings': 1, 'tags': ['scanned']
                 })
-
-                st.markdown(f"**{food_name.title()}** ({confidence:.0%} confidence)")
-                p1, p2, p3 = st.columns([2, 2, 1])
-                with p1:
-                    portion = st.selectbox(f"Portion for {food_name}", list(PORTION_MULTIPLIERS.keys()),
-                                          index=1, key=f"portion_{idx}")
-                with p2:
-                    mult = PORTION_MULTIPLIERS[portion]
-                    st.caption(
-                        f"{nutrition['calories']*mult:.0f} cal · {nutrition['protein']*mult:.1f}g P · "
-                        f"{nutrition['carbs']*mult:.1f}g C · {nutrition['fat']*mult:.1f}g F · "
-                        f"{nutrition.get('fiber',0)*mult:.1f}g fiber"
-                    )
-                with p3:
-                    if st.checkbox("Add", key=f"scan_add_{idx}", value=True):
-                        items_to_add.append({
-                            'name': food_name.title(),
-                            'calories': nutrition['calories'] * mult,
-                            'protein': nutrition['protein'] * mult,
-                            'carbs': nutrition['carbs'] * mult,
-                            'fat': nutrition['fat'] * mult,
-                            'fiber': nutrition.get('fiber', 0) * mult,
-                            'food_group': nutrition.get('food_group', 'Other'),
-                            'portion': portion,
-                        })
-
-            if items_to_add and st.button("📝 Add Selected to Food Log", type="primary"):
-                for item in items_to_add:
-                    st.session_state.food_log.append({
-                        'date': str(datetime.now().date()),
-                        'time': datetime.now().strftime("%H:%M"),
-                        'name': f"{item['name']} ({item['portion']})",
-                        'hall': 'Scanned', 'meal': 'Scanned',
-                        'calories': item['calories'], 'protein': item['protein'],
-                        'carbs': item['carbs'], 'fat': item['fat'],
-                        'fiber': item['fiber'], 'food_group': item['food_group'],
-                        'serving_size': item['portion'], 'servings': 1, 'tags': ['scanned']
-                    })
                 save_user_data()
-                st.success(f"Added {len(items_to_add)} item(s) to your food log!")
+                st.success(f"Added **{result['food_name']}** ({result['calories']} cal) to your food log!")
         else:
-            st.warning("No foods detected. Try a clearer photo with better lighting.")
+            st.warning("Could not identify this food. Try a clearer top-down photo with good lighting.")
 
 
 # ================================================

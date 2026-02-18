@@ -71,6 +71,10 @@ coverage.xml
 # App data persistence
 .app_data/
 
+# Training artifacts (only food_classifier.pt is needed)
+food_dataset/
+runs/
+
 # Logs
 *.log
 logs/
