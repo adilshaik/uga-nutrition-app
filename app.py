@@ -188,14 +188,80 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Clean neutral CSS - no red/dark colors
+# Theme-aware CSS using CSS variables - works in both light and dark mode
 st.markdown("""
 <style>
-    .stApp { background-color: #fafbfc; }
+    /* ── Theme variables ── */
+    :root {
+        --bg-page: #fafbfc;
+        --bg-card: #ffffff;
+        --bg-badge: #edf2f7;
+        --bg-sidebar: #f7fafc;
+        --border-color: #e2e8f0;
+        --border-hover: #a0aec0;
+        --text-primary: #2d3748;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --text-faint: #a0aec0;
+        --header-bg-start: #4a5568;
+        --header-bg-end: #2d3748;
+        --progress-bar: #a0aec0;
+        --shadow-hover: rgba(0,0,0,0.06);
+        --shadow-btn: rgba(0,0,0,0.1);
+        --nutrition-card-bg: #f7fafc;
+        --nutrition-card-border: #e2e8f0;
+    }
 
-    /* Header banner - neutral warm tones */
+    /* Dark mode - OS/browser preference */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-page: #0e1117;
+            --bg-card: #1e1e2e;
+            --bg-badge: #2a2a3e;
+            --bg-sidebar: #161625;
+            --border-color: #333350;
+            --border-hover: #555580;
+            --text-primary: #e2e8f0;
+            --text-secondary: #cbd5e0;
+            --text-muted: #a0aec0;
+            --text-faint: #718096;
+            --header-bg-start: #2d3748;
+            --header-bg-end: #1a202c;
+            --progress-bar: #718096;
+            --shadow-hover: rgba(0,0,0,0.3);
+            --shadow-btn: rgba(0,0,0,0.3);
+            --nutrition-card-bg: #1e1e2e;
+            --nutrition-card-border: #333350;
+        }
+    }
+
+    /* Dark mode - Streamlit's own theme detection */
+    [data-testid="stAppViewContainer"][data-theme="dark"] {
+        --bg-page: #0e1117;
+        --bg-card: #1e1e2e;
+        --bg-badge: #2a2a3e;
+        --bg-sidebar: #161625;
+        --border-color: #333350;
+        --border-hover: #555580;
+        --text-primary: #e2e8f0;
+        --text-secondary: #cbd5e0;
+        --text-muted: #a0aec0;
+        --text-faint: #718096;
+        --header-bg-start: #2d3748;
+        --header-bg-end: #1a202c;
+        --progress-bar: #718096;
+        --shadow-hover: rgba(0,0,0,0.3);
+        --shadow-btn: rgba(0,0,0,0.3);
+        --nutrition-card-bg: #1e1e2e;
+        --nutrition-card-border: #333350;
+    }
+
+    /* ── Layout ── */
+    .stApp { background-color: var(--bg-page); }
+
+    /* Header banner */
     .app-header {
-        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        background: linear-gradient(135deg, var(--header-bg-start) 0%, var(--header-bg-end) 100%);
         padding: 1.5rem 2rem;
         border-radius: 12px;
         color: white;
@@ -204,17 +270,17 @@ st.markdown("""
     .app-header h1 { margin: 0; font-size: 1.8rem; font-weight: 700; }
     .app-header p { margin: 0.25rem 0 0 0; opacity: 0.85; font-size: 0.95rem; }
 
-    /* Metric cards - neutral borders */
+    /* Metric / target cards */
     .target-card {
-        background: white;
-        border: 1px solid #e2e8f0;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 1rem 1.25rem;
         text-align: center;
         margin-bottom: 0.5rem;
     }
-    .target-card .label { font-size: 0.8rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; }
-    .target-card .value { font-size: 1.3rem; font-weight: 700; color: #2d3748; margin-top: 0.25rem; }
+    .target-card .label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .target-card .value { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem; }
 
     /* Quick action buttons */
     .stButton > button {
@@ -224,30 +290,30 @@ st.markdown("""
     }
     .stButton > button:hover {
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        box-shadow: 0 4px 12px var(--shadow-btn) !important;
     }
 
     /* Food item cards */
     .food-card {
-        background: white;
-        border: 1px solid #e2e8f0;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 1rem 1.25rem;
         margin-bottom: 0.75rem;
         transition: all 0.2s;
     }
     .food-card:hover {
-        border-color: #a0aec0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-color: var(--border-hover);
+        box-shadow: 0 2px 8px var(--shadow-hover);
     }
-    .food-card .food-name { font-weight: 600; font-size: 1rem; color: #2d3748; }
-    .food-card .food-meta { color: #718096; font-size: 0.85rem; margin-top: 0.2rem; }
-    .food-card .food-macros { font-size: 0.85rem; margin-top: 0.5rem; color: #4a5568; }
-    .food-card .food-macros strong { color: #2d3748; }
+    .food-card .food-name { font-weight: 600; font-size: 1rem; color: var(--text-primary); }
+    .food-card .food-meta { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem; }
+    .food-card .food-macros { font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-secondary); }
+    .food-card .food-macros strong { color: var(--text-primary); }
     .food-card .food-badge {
         display: inline-block;
-        background: #edf2f7;
-        color: #4a5568;
+        background: var(--bg-badge);
+        color: var(--text-secondary);
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 0.75rem;
@@ -256,19 +322,19 @@ st.markdown("""
     }
 
     /* Override Streamlit metric delta colors to neutral */
-    [data-testid="stMetricDelta"] { color: #718096 !important; }
+    [data-testid="stMetricDelta"] { color: var(--text-muted) !important; }
     [data-testid="stMetricDelta"] svg { display: none !important; }
 
     /* Sidebar styling */
     section[data-testid="stSidebar"] {
-        background-color: #f7fafc;
+        background-color: var(--bg-sidebar);
     }
 
     /* Progress bars - neutral color */
-    .stProgress > div > div { background-color: #a0aec0 !important; }
+    .stProgress > div > div { background-color: var(--progress-bar) !important; }
 
     /* Clean dividers */
-    hr { border-color: #e2e8f0 !important; }
+    hr { border-color: var(--border-color) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -422,7 +488,7 @@ Answer a few quick questions to get personalized recommendations.
             "a **starting place**. For more specific recommendations tailored to your situation, please consult a "
             "Registered Dietitian. UGA students can "
             "[schedule a free appointment with the campus Dietitian]"
-            "(https://www.uhs.uga.edu/nutrition)."
+            "(https://outlook.office.com/book/UGADiningServicesRegisteredDietitians@groups.uga.edu/)."
         )
         with st.form("goal_setup"):
             col1, col2 = st.columns(2)
@@ -511,7 +577,7 @@ Answer a few quick questions to get personalized recommendations.
         t_range = get_target_range(targets, day_type)
 
         # --- Target range cards using HTML for clean display ---
-        st.markdown(f"#### Daily Target Ranges &nbsp; <span style='color:#718096;font-size:0.85rem;'>({day_type})</span>", unsafe_allow_html=True)
+        st.markdown(f"#### Daily Target Ranges &nbsp; <span style='color:var(--text-muted);font-size:0.85rem;'>({day_type})</span>", unsafe_allow_html=True)
 
         macro_data = [
             ("Calories", f"{t_range['calories']['low']} - {t_range['calories']['high']}", "kcal"),
@@ -526,7 +592,7 @@ Answer a few quick questions to get personalized recommendations.
             cards_html += f'''
             <div class="target-card" style="flex:1;min-width:140px;">
                 <div class="label">{label}</div>
-                <div class="value">{val}<span style="font-size:0.8rem;color:#a0aec0;"> {unit}</span></div>
+                <div class="value">{val}<span style="font-size:0.8rem;color:var(--text-faint);"> {unit}</span></div>
             </div>'''
         cards_html += '</div>'
         st.markdown(cards_html, unsafe_allow_html=True)
@@ -571,8 +637,8 @@ Answer a few quick questions to get personalized recommendations.
                 intake_html += f'''
                 <div class="target-card" style="flex:1;min-width:130px;">
                     <div class="label">{label}</div>
-                    <div class="value">{eaten}<span style="font-size:0.75rem;color:#a0aec0;"> {unit}</span></div>
-                    <div style="font-size:0.75rem;color:#a0aec0;margin-top:2px;">of {rng["low"]}-{rng["high"]}</div>
+                    <div class="value">{eaten}<span style="font-size:0.75rem;color:var(--text-faint);"> {unit}</span></div>
+                    <div style="font-size:0.75rem;color:var(--text-faint);margin-top:2px;">of {rng["low"]}-{rng["high"]}</div>
                 </div>'''
             intake_html += '</div>'
             st.markdown(intake_html, unsafe_allow_html=True)
@@ -708,8 +774,8 @@ elif page == "📝 Food Log":
             summary_html += f'''
             <div class="target-card" style="flex:1;min-width:120px;">
                 <div class="label">{label}</div>
-                <div class="value">{int(total)}<span style="font-size:0.75rem;color:#a0aec0;"> {unit}</span></div>
-                <div style="font-size:0.7rem;color:#a0aec0;">target: {rng["low"]}-{rng["high"]}</div>
+                <div class="value">{int(total)}<span style="font-size:0.75rem;color:var(--text-faint);"> {unit}</span></div>
+                <div style="font-size:0.7rem;color:var(--text-faint);">target: {rng["low"]}-{rng["high"]}</div>
             </div>'''
         summary_html += '</div>'
         st.markdown(summary_html, unsafe_allow_html=True)
@@ -724,7 +790,7 @@ elif page == "📝 Food Log":
             st.markdown("**Food Groups**")
             group_html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">'
             for group, count in group_counts.most_common():
-                group_html += f'<span style="background:#edf2f7;color:#4a5568;padding:4px 12px;border-radius:16px;font-size:0.8rem;">{group}: {count}</span>'
+                group_html += f'<span style="background:var(--bg-badge);color:var(--text-secondary);padding:4px 12px;border-radius:16px;font-size:0.8rem;">{group}: {count}</span>'
             group_html += '</div>'
             st.markdown(group_html, unsafe_allow_html=True)
 
@@ -817,13 +883,13 @@ elif page == "🖼️ Food Scanner":
             st.markdown(f"#### {result['food_name']}")
             st.caption(f"{result['portion_label']} · {conf_pct}% confidence · {result['food_group']}")
 
-            st.markdown(f'''<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin:8px 0;">
+            st.markdown(f'''<div style="background:var(--nutrition-card-bg);border:1px solid var(--nutrition-card-border);border-radius:10px;padding:16px;margin:8px 0;">
                 <div style="display:flex;justify-content:space-around;text-align:center;">
-                    <div><div style="font-size:1.4rem;font-weight:700;">{result["calories"]}</div><div style="color:#718096;font-size:0.85rem;">Calories</div></div>
-                    <div><div style="font-size:1.4rem;font-weight:700;">{result["protein"]}g</div><div style="color:#718096;font-size:0.85rem;">Protein</div></div>
-                    <div><div style="font-size:1.4rem;font-weight:700;">{result["carbs"]}g</div><div style="color:#718096;font-size:0.85rem;">Carbs</div></div>
-                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fat"]}g</div><div style="color:#718096;font-size:0.85rem;">Fat</div></div>
-                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fiber"]}g</div><div style="color:#718096;font-size:0.85rem;">Fiber</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["calories"]}</div><div style="color:var(--text-muted);font-size:0.85rem;">Calories</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["protein"]}g</div><div style="color:var(--text-muted);font-size:0.85rem;">Protein</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["carbs"]}g</div><div style="color:var(--text-muted);font-size:0.85rem;">Carbs</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fat"]}g</div><div style="color:var(--text-muted);font-size:0.85rem;">Fat</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:700;">{result["fiber"]}g</div><div style="color:var(--text-muted);font-size:0.85rem;">Fiber</div></div>
                 </div>
             </div>''', unsafe_allow_html=True)
 
