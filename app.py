@@ -797,27 +797,59 @@ elif page == "📝 Food Log":
         # Logged Items
         st.markdown("**Logged Items**")
         for i, entry in enumerate(day_log):
+            full_idx = st.session_state.food_log.index(entry)
+
             col1, col2, col3 = st.columns([3, 2, 1])
+
             with col1:
                 fg_label = entry.get('food_group', '')
                 st.markdown(f"**{entry['name']}** {('(' + fg_label + ')') if fg_label else ''}")
                 st.caption(f"📍 {entry.get('hall', 'N/A')} · {entry.get('meal', 'N/A')} · {entry['time']}")
+
             with col2:
                 st.caption(
                     f"{entry['calories']:.0f} cal · {entry['protein']:.1f}g P · "
                     f"{entry['carbs']:.1f}g C · {entry['fat']:.1f}g F · {entry.get('fiber',0):.1f}g fiber"
                 )
-                full_idx = st.session_state.food_log.index(entry)
-                servings = st.number_input("Servings", min_value=0.5, max_value=5.0,
-                                           value=float(entry.get('servings', 1)), step=0.5, key=f"serv_{i}")
+
+                # 🧠 Mindfulness field
+                mindfulness_value = entry.get("mindfulness", "")
+                st.markdown("##### 🧠 Mindfulness")
+
+                new_mindfullness = st.slider(
+                "How full do you feel after this meal?",
+                min_value=1,
+                max_value=5,
+                value=entry.get("fullness", 3),
+                help="1 = Still hungry | 3 = Comfortably satisfied | 5 = Overfull",
+                key=f"full_{i}"
+                )
+
+                if new_mindfullness != entry.get("fullness", 3):
+                    st.session_state.food_log[full_idx]["fullness"] = new_mindfullness
+                    save_user_data()
+
+
+                # Servings
+                servings = st.number_input(
+                    "Servings",
+                    min_value=0.5,
+                    max_value=5.0,
+                    value=float(entry.get('servings', 1)),
+                    step=0.5,
+                    key=f"serv_{i}"
+                )
+
                 if servings != entry.get('servings', 1):
                     st.session_state.food_log[full_idx]['servings'] = servings
                     save_user_data()
+
             with col3:
                 if st.button("🗑️", key=f"del_{i}"):
                     st.session_state.food_log.remove(entry)
                     save_user_data()
                     st.rerun()
+
             st.markdown("---")
 
         # Export
@@ -982,14 +1014,19 @@ elif page == "🤖 Ask the Agent":
         for i, prompt in enumerate(prompts):
             with prompt_cols[i % 2]:
                 if st.button(prompt, key=f"suggest_{i}", use_container_width=True):
-                    st.session_state.chat_history.append({"role": "user", "content": prompt})
+                    st.session_state['pending_prompt'] = prompt
                     st.rerun()
 
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if user_input := st.chat_input("Ask about nutrition..."):
+    _pending = st.session_state.pop('pending_prompt', None)
+    user_input = st.chat_input("Ask about nutrition...")
+    if _pending:
+        user_input = _pending
+
+    if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
         with st.chat_message("user"):
