@@ -196,9 +196,9 @@ Your role is to help students achieve their nutrition goals using UGA Dining Ser
     def _get_fallback_response(self, user_message: str, context: dict, chat_history: list = None) -> dict:
         """Provide a rule-based fallback response when API is unavailable."""
         user_input_lower = user_message.lower()
-        targets = context.get('targets', {})
-        goal_type = context.get('goals', {}).get('type', 'your goals')
-        today_totals = context.get('today_totals', {})
+        targets = context.get('targets') or {}
+        goal_type = (context.get('goals') or {}).get('type', 'your goals')
+        today_totals = context.get('today_totals') or {}
 
         # Check if this is a follow-up confirmation (yes/sure/please/ok)
         if chat_history and user_input_lower.strip() in ['yes', 'yeah', 'sure', 'please', 'ok', 'okay', 'yep', 'y']:
@@ -298,9 +298,9 @@ What would you like to focus on?""",
 
     def _get_meal_plan_response(self, context: dict) -> dict:
         """Generate a meal plan based on user context."""
-        targets = context.get('targets', {})
-        goal_type = context.get('goals', {}).get('type', 'your goals')
-        today_totals = context.get('today_totals', {})
+        targets = context.get('targets') or {}
+        goal_type = (context.get('goals') or {}).get('type', 'your goals')
+        today_totals = context.get('today_totals') or {}
 
         remaining_cal = targets.get('calories', 2000) - today_totals.get('calories', 0)
         remaining_protein = targets.get('protein', 150) - today_totals.get('protein', 0)

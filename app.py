@@ -730,11 +730,17 @@ elif page == "🍽️ Dining Finder":
                     'food_group': item.get('food_group', 'Other'),
                     'serving_size': item.get('serving_size'),
                     'servings': 1,
-                    'tags': item.get('tags', [])
+                    'tags': item.get('tags', []),
+                    'mindfulness': st.session_state.get(f"mind_dining_{i}", '')
                 }
                 st.session_state.food_log.append(log_entry)
                 save_user_data()
                 st.success(f"Added **{item['name']}**!")
+            st.text_input(
+                "🧘 Mindfulness – Do you feel full after this meal?",
+                placeholder="e.g. Full and satisfied, still a bit hungry…",
+                key=f"mind_dining_{i}"
+            )
 
     if not filtered_menu:
         st.info("No items match your filters. Try a different hall or meal period.")
@@ -818,6 +824,15 @@ elif page == "📝 Food Log":
                     st.session_state.food_log.remove(entry)
                     save_user_data()
                     st.rerun()
+            mindfulness = st.text_input(
+                "🧘 Mindfulness – Do you feel full after this meal?",
+                value=entry.get('mindfulness', ''),
+                placeholder="e.g. Full and satisfied, still a bit hungry, ate too fast…",
+                key=f"mind_{i}"
+            )
+            if mindfulness != entry.get('mindfulness', ''):
+                st.session_state.food_log[full_idx]['mindfulness'] = mindfulness
+                save_user_data()
             st.markdown("---")
 
         # Export
@@ -979,17 +994,22 @@ elif page == "🤖 Ask the Agent":
             "Suggest a low calorie dinner",
             "Plan my meals for today"
         ]
+        # Only set a flag inside column context; process outside to avoid rerun-inside-column issues
         for i, prompt in enumerate(prompts):
             with prompt_cols[i % 2]:
                 if st.button(prompt, key=f"suggest_{i}", use_container_width=True):
-                    st.session_state.chat_history.append({"role": "user", "content": prompt})
-                    st.rerun()
+                    st.session_state['_pending_prompt'] = prompt
+
+    # Pop any pending quick-button prompt so both paths share the same response logic below
+    _pending_prompt = st.session_state.pop('_pending_prompt', None)
 
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if user_input := st.chat_input("Ask about nutrition..."):
+    _typed_input = st.chat_input("Ask about nutrition...")
+    user_input = _typed_input or _pending_prompt
+    if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
         with st.chat_message("user"):
