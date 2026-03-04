@@ -302,22 +302,19 @@ def get_agent_response(user_input: str, context: dict) -> dict:
     """Get response from Groq agent or fallback"""
     api_key = st.session_state.get('groq_api_key', '')
     
-    try:
-        if MODULES_AVAILABLE and api_key:
-            agent = get_agent(api_key)
-            if agent and agent.is_available():
-                # Check for concerning content first
-                concern_response = agent.check_for_concerning_content(user_input)
-                if concern_response:
-                    return {"message": concern_response, "citation": "UGA Student Support Services", "success": True}
-                
-                return agent.get_response(
-                    user_input, 
-                    context, 
-                    st.session_state.chat_history
-                )
-    except Exception as e:
-        print(f"Agent error: {e}")
+    if MODULES_AVAILABLE and api_key:
+        agent = get_agent(api_key)
+        if agent and agent.is_available():
+            # Check for concerning content first
+            concern_response = agent.check_for_concerning_content(user_input)
+            if concern_response:
+                return {"message": concern_response, "citation": "UGA Student Support Services", "success": True}
+            
+            return agent.get_response(
+                user_input, 
+                context, 
+                st.session_state.chat_history
+            )
     
     # Fallback to simple responses
     return fallback_response(user_input, context)
@@ -326,9 +323,9 @@ def get_agent_response(user_input: str, context: dict) -> dict:
 def fallback_response(user_input: str, context: dict) -> dict:
     """Provide responses when Groq is not available"""
     user_input_lower = user_input.lower()
-    targets = context.get('targets') or {}
-    goal_type = (context.get('goals') or {}).get('type', 'your goals')
-    today_totals = context.get('today_totals') or {'calories': 0, 'protein': 0}
+    targets = context.get('targets', {})
+    goal_type = context.get('goals', {}).get('type', 'your goals')
+    today_totals = context.get('today_totals', {'calories': 0, 'protein': 0})
     
     if any(word in user_input_lower for word in ['protein', 'muscle', 'bulk']):
         remaining = targets.get('protein', 150) - today_totals.get('protein', 0)
@@ -737,19 +734,10 @@ elif "Dining" in page:
                         'protein': item['nutrition']['protein'],
                         'carbs': item['nutrition']['carbs'],
                         'fat': item['nutrition']['fat'],
-                        'servings': 1,
-                        'mindfulness': st.session_state.get(f"mind_dining_{item['item_id']}", '')
+                        'servings': 1
                     }
                     st.session_state.food_log.append(log_entry)
                     st.toast(f"✅ Added {item['name']} to your log!")
-            
-            # Mindfulness check-in at point of logging
-            st.text_input(
-                "🧘 Mindfulness – Do you feel full after this meal?",
-                placeholder="e.g. Full and satisfied, still a bit hungry, ate too fast…",
-                key=f"mind_dining_{item['item_id']}",
-                label_visibility="visible"
-            )
             
             st.markdown("---")
 
@@ -810,26 +798,14 @@ elif "Log" in page:
                     if st.button("🗑️", key=f"del_{i}"):
                         st.session_state.food_log.remove(entry)
                         st.rerun()
-                
-                # Mindfulness check-in
-                mindfulness = st.text_input(
-                    "🧘 Mindfulness – Do you feel full after this meal?",
-                    value=entry.get('mindfulness', ''),
-                    placeholder="e.g. Full and satisfied, still a bit hungry, ate too fast…",
-                    key=f"mind_{i}"
-                )
-                idx = st.session_state.food_log.index(entry)
-                st.session_state.food_log[idx]['mindfulness'] = mindfulness
-                
                 st.markdown("---")
         
         st.markdown("### 📥 Export")
         col1, col2 = st.columns(2)
         with col1:
-            csv_data = "date,time,name,hall,meal,calories,protein,carbs,fat,servings,mindfulness\n"
+            csv_data = "date,time,name,hall,meal,calories,protein,carbs,fat,servings\n"
             for e in day_log:
-                mindfulness_val = e.get('mindfulness', '').replace(',', ';')
-                csv_data += f"{e['date']},{e['time']},{e['name']},{e.get('hall','')},{e.get('meal','')},{e['calories']},{e['protein']},{e['carbs']},{e['fat']},{e.get('servings',1)},{mindfulness_val}\n"
+                csv_data += f"{e['date']},{e['time']},{e['name']},{e.get('hall','')},{e.get('meal','')},{e['calories']},{e['protein']},{e['carbs']},{e['fat']},{e.get('servings',1)}\n"
             st.download_button("📄 Download CSV", csv_data, "food_log.csv", "text/csv", use_container_width=True)
         with col2:
             st.download_button("📄 Download JSON", json.dumps(day_log, indent=2), "food_log.json", use_container_width=True)
@@ -881,7 +857,7 @@ elif "Agent" in page:
         """, unsafe_allow_html=True)
         
         # Suggested prompts
-        st.markdown("### 💬 Try one of these")
+        st.markdown("### 💬 Suggested Questions")
         prompt_cols = st.columns(2)
         prompts = [
             "What high-protein options are at Bolton today?",
@@ -889,26 +865,20 @@ elif "Agent" in page:
             "What are healthy breakfast options?",
             "Help me plan meals to stay under my calorie target"
         ]
-
-        # Only set a flag inside the column context; process outside to avoid rerun-inside-column issues
+        
         for i, prompt in enumerate(prompts):
             with prompt_cols[i % 2]:
                 if st.button(prompt, key=f"prompt_{i}", use_container_width=True):
-                    st.session_state['_pending_prompt'] = prompt
-
-        # Process any pending quick-button prompt outside the column context
-        if st.session_state.get('_pending_prompt'):
-            _prompt = st.session_state.pop('_pending_prompt')
-            st.session_state.chat_history.append({"role": "user", "content": _prompt})
-            _context = build_agent_context(True)
-            _response = get_agent_response(_prompt, _context)
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": _response["message"],
-                "citation": _response.get("citation", "")
-            })
-            st.rerun()
-
+                    st.session_state.chat_history.append({"role": "user", "content": prompt})
+                    context = build_agent_context(True)
+                    response = get_agent_response(prompt, context)
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response["message"],
+                        "citation": response.get("citation", "")
+                    })
+                    st.rerun()
+        
         st.markdown("---")
         
         use_log = st.checkbox("📝 Include my food log for context", value=True)
